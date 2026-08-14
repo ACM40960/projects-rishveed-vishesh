@@ -1,0 +1,11 @@
+# Pinned to the versions used to build this project.
+# If any exact version is unavailable on your machine, relax == to >=.
+pandas==3.0.2
+numpy==2.4.4
+scipy==1.17.1
+scikit-learn==1.8.0
+statsmodels==0.14.6
+xgboost==3.4.0
+matplotlib==3.10.8
+statsbombpy==1.22.0
+SALib==1.5.2
