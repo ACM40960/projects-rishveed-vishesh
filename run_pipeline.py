@@ -1,5 +1,5 @@
-# Runs the whole project in the correct order. Just run:  python run_all.py
-# The first two scripts download data from StatsBomb, so allow a few minutes.
+# Runs the whole project in the correct order. Just run:  python run_pipeline.py
+# # The first two scripts download data from StatsBomb, so allow a few minutes.
 import os, sys, subprocess
 
 os.makedirs("data", exist_ok=True)
