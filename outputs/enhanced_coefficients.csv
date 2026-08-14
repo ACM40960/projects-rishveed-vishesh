@@ -1,0 +1,22 @@
+,coef,odds_ratio,p_value
+const,-0.4813,0.618,0.0012
+distance,-0.1239,0.8835,0.0
+angle_deg,0.0282,1.0286,0.0
+under_pressure,-0.2356,0.7901,0.0
+shot_first_time,-0.1338,0.8748,0.0156
+shot_body_part_Head,-1.4259,0.2403,0.0
+shot_body_part_Left Foot,-0.0722,0.9303,0.1416
+shot_body_part_Other,-0.9952,0.3696,0.0015
+shot_technique_Half Volley,-0.4291,0.6511,0.0
+shot_technique_Other,-0.0879,0.9159,0.4558
+shot_technique_Volley,-0.4384,0.6451,0.0
+shot_type_Corner,5.9652,389.6343,0.0
+shot_type_Free Kick,0.8905,2.4364,0.0
+play_pattern_From Corner,-0.5853,0.5569,0.0
+play_pattern_From Counter,0.5027,1.6532,0.0
+play_pattern_From Free Kick,-0.0691,0.9332,0.2826
+play_pattern_From Goal Kick,0.0271,1.0275,0.8081
+play_pattern_From Keeper,0.0593,1.0611,0.7263
+play_pattern_From Kick Off,-0.1495,0.8611,0.4906
+play_pattern_From Throw In,-0.1183,0.8884,0.0614
+play_pattern_Other,-0.5022,0.6052,0.3899

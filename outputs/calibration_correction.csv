@@ -1,0 +1,4 @@
+model,AUC,Brier,ECE
+XGBoost (uncalibrated),0.7879,0.0742,0.0039
+XGBoost + Platt,0.7879,0.0742,0.0048
+XGBoost + Isotonic,0.7874,0.0742,0.0076
