@@ -1,0 +1,499 @@
+\documentclass[11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{caption}
+\usepackage[colorlinks=true,linkcolor=navy,urlcolor=navy,citecolor=navy]{hyperref}
+
+\definecolor{navy}{HTML}{1F3864}
+\definecolor{accent}{HTML}{2E7D5B}
+\definecolor{grey}{HTML}{595959}
+
+\titleformat{\section}{\normalfont\Large\bfseries\color{navy}}{\thesection}{0.6em}{}[{\color{accent}\titlerule[1pt]}]
+\titleformat{\subsection}{\normalfont\large\bfseries\color{navy}}{\thesubsection}{0.5em}{}
+\captionsetup{font=small,labelfont={bf,color=navy}}
+
+\begin{document}
+
+% ================= Title =================
+\begin{center}
+  {\LARGE\bfseries\color{navy} Expected Goals (xG) Modelling in Football}\\[6pt]
+  {\large\itshape\color{grey} A Mathematical Modelling Approach}\\[4pt]
+  {\small\color{grey} ACM 40960 \ $\cdot$ \ Mathematical Modelling}
+\end{center}
+\vspace{2pt}
+{\color{navy}\hrule height 1.2pt}
+\vspace{12pt}
+
+% ================= Abstract =================
+\noindent\textbf{Abstract.} This project builds and studies a calibrated Expected
+Goals (xG) model for football using the StatsBomb open dataset. The work treats
+xG as a mathematical model rather than only a prediction task. The two main shot
+features, distance and angle, are derived from pitch geometry, the baseline
+logistic model is framed as a maximum likelihood optimisation problem, and the
+fitted model is then extended in three directions: a Monte Carlo match simulation
+based on the Poisson-binomial distribution, a Bayesian version that quantifies
+uncertainty, and a sensitivity analysis. A simple distance and angle model
+reaches an AUC of 0.75, and adding contextual features raises this to 0.78.
+Random Forest and XGBoost match the enhanced logistic model almost exactly, which
+shows that with these features the choice of algorithm matters far less than the
+information available. All models are well calibrated. The simulation recovers
+known real-world results, identifying Leicester City and Atl\'etico Madrid as the
+largest over-performers of the 2015/16 season.
+
+\vspace{6pt}
+\tableofcontents
+\vspace{10pt}
+
+% ================= Introduction =================
+\section{Introduction}
+
+Expected Goals (xG) is a way of measuring how likely a shot is to end up as a
+goal. Each shot is given a value between 0 and 1, where a higher value means a
+better chance of scoring, based on features such as the distance from goal, the
+angle to goal, the body part used, and the amount of defensive pressure. Over the
+last decade xG has become a standard metric in football analytics and is now used
+widely by clubs, broadcasters, and researchers. Because goals are rare, a measure
+that estimates the quality of a shot rather than just counting goals gives a more
+stable picture of performance.
+
+The aim of this project is not only to fit an accurate xG model but to treat it
+as a mathematical object. The shot geometry is derived from first principles, the
+fitting of the baseline model is framed as an optimisation problem, the model is
+extended to whole match outcomes through simulation, and the uncertainty in the
+predictions is quantified. The work is carried out entirely on open data so that
+it remains reproducible.
+
+% ================= Literature Review =================
+\section{Literature Review}
+
+Early xG models were kept deliberately simple. Rathke (2017) showed that a
+logistic regression model based mainly on shot distance and angle could already
+give a reasonable estimate of goal probability, which set the basic template that
+most later work has built on. Much of the later research focused on adding more
+information and using more flexible methods. Lucey et al.\ (2015) showed that
+strategic and spatial features improved prediction beyond shot location alone, and
+Anzer and Bauer (2021) combined synchronised positional and event data to build
+one of the more detailed models in the field. Mead et al.\ (2023) argued that
+standard models leave out useful information such as player and team ability, and
+researchers have increasingly moved from logistic regression toward tree based
+ensemble methods such as Random Forest and gradient boosting.
+
+A separate strand of work has focused on interpretability and on adjusting models
+for who takes the shot. Hewitt and Karaku\c{s} (2023) trained position adjusted
+models, and Scholtes and Karaku\c{s} (2024) used a Bayesian hierarchical approach
+to correct for player and position. A common use of xG is to judge finishing
+ability by comparing a player's actual goals to their total xG. This use has been
+questioned: Davis and Robberechts (2024) found that a player's overperformance is
+not stable from one season to the next, and that xG models can carry biases
+because stronger players and teams take more shots. Their work is a useful
+reminder that a finishing table should be read with care rather than treated as a
+clean measure of skill.
+
+xG is also a natural building block for modelling whole match outcomes. A long
+line of work models the number of goals a team scores using Poisson based models,
+starting with Dixon and Coles (1997), and later placed in a Bayesian hierarchical
+framework by Baio and Blangiardo (2010). Because each shot already has a goal
+probability, the goals in a match can be treated as a sum of independent Bernoulli
+trials, which links the shot level model to a simulation of results at the match
+level. The present project draws these threads together on open data, with a
+particular emphasis on calibration and on the mathematical structure behind each
+step.
+
+% ================= Data =================
+\section{Data}
+
+The data source is the StatsBomb open dataset. In the open release only the
+2015/16 season is fully covered for the major leagues, so the four full 2015/16
+seasons of La Liga, the Premier League, Serie A, and Ligue 1 were combined into a
+single dataset. This gives a large and unbiased sample rather than the
+player-specific subsets available for other seasons. After removing penalties,
+which are always taken from the same spot and would distort a distance and angle
+model, the dataset contains 37{,}488 shots, of which 3{,}569 were goals, an
+overall conversion rate of 9.5 percent. Each shot records its pitch coordinates,
+body part, technique, shot type, play pattern, whether the shooter was under
+pressure, and whether it was a first-time shot.
+
+% ================= Feature engineering: geometry =================
+\section{Shot Geometry}
+
+The pitch is 120 units long and 80 units wide. The goal being attacked lies on
+the line $x = 120$, with posts at $y = 36$ and $y = 44$, so the goal is $w = 8$
+units wide and its centre is $C = (120, 40)$. Two features are derived from the
+raw location $(x, y)$.
+
+The distance is the straight-line distance to the centre of the goal,
+\begin{equation}
+  d = \sqrt{(120-x)^2 + (40-y)^2}.
+\end{equation}
+The angle is the width of the goal as seen from the shot, that is, the angle
+$\theta$ subtended at $P=(x,y)$ by the two posts $A=(120,36)$ and $B=(120,44)$.
+With $p = |PA|$ and $q = |PB|$ the distances to each post, the law of cosines
+applied to triangle $APB$, whose side opposite $\theta$ is the goal of length
+$w=8$, gives
+\begin{equation}
+  \theta = \arccos\!\left(\frac{p^2 + q^2 - w^2}{2pq}\right).
+\end{equation}
+
+Figure~\ref{fig:geom} shows lines of equal distance and equal angle on the pitch.
+Each equal-angle curve is a circular arc through both posts, a consequence of the
+inscribed angle theorem. Figure~\ref{fig:validation} confirms that both features
+carry genuine signal: conversion falls sharply with distance and rises with a
+wider angle, which justifies using $d$ and $\theta$ as the inputs to the baseline
+model.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{geometry_iso_curves.png}
+  \caption{Lines of equal distance (left) and equal angle (right). The red segment is the goal.}
+  \label{fig:geom}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{feature_validation.png}
+  \caption{Empirical conversion rate against distance and angle, confirming both features are predictive.}
+  \label{fig:validation}
+\end{figure}
+
+% ================= Baseline model =================
+\section{Baseline Model: Logistic Regression}
+
+For each shot $i$ with distance $d_i$ and angle $\theta_i$ and outcome
+$y_i \in \{0,1\}$, the probability of a goal is modelled as
+\begin{equation}
+  p_i = \sigma(\eta_i) = \frac{1}{1 + e^{-\eta_i}}, \qquad
+  \eta_i = \beta_0 + \beta_1 d_i + \beta_2 \theta_i,
+\end{equation}
+which is linear on the log-odds scale,
+$\log\!\big(p_i/(1-p_i)\big) = \beta_0 + \beta_1 d_i + \beta_2 \theta_i$.
+
+\paragraph{Fitting as an optimisation problem.}
+Each outcome is a Bernoulli trial, so the log-likelihood is
+\begin{equation}
+  \ell(\boldsymbol{\beta}) = \sum_{i=1}^{n}\big[\,y_i \log p_i + (1-y_i)\log(1-p_i)\,\big],
+\end{equation}
+and the maximum likelihood estimate is
+$\hat{\boldsymbol{\beta}} = \arg\max_{\boldsymbol{\beta}} \ell(\boldsymbol{\beta})$.
+Setting the gradient to zero gives the score equations
+$\mathbf{X}^\top(\mathbf{y} - \mathbf{p}) = \mathbf{0}$, which have no closed-form
+solution and are solved numerically by Newton--Raphson. The log-likelihood is
+concave, so the solution is the unique global maximum.
+
+The fitted coefficients were $\beta_0 = -1.72$, $\beta_1 = -0.073$ for distance,
+and $\beta_2 = 0.023$ for angle, all highly significant. As odds ratios, each
+extra unit of distance multiplies the odds of scoring by $0.93$, a reduction of
+about 7 percent, and each extra degree of angle multiplies them by $1.02$. The
+resulting xG surface is shown in Figure~\ref{fig:surface}.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.62\textwidth]{baseline_xg_surface.png}
+  \caption{Baseline xG surface over the attacking third, brightest in front of goal.}
+  \label{fig:surface}
+\end{figure}
+
+% ================= Evaluation =================
+\section{Evaluation}
+
+Models are assessed on a held-out test set of 20 percent of shots, using three
+measures. The area under the ROC curve (AUC) is the probability that a random goal
+is given a higher xG than a random non-goal, measuring ranking only. The Brier
+score, $\mathrm{BS} = \tfrac{1}{n}\sum_i (p_i - y_i)^2$, measures the accuracy of
+the probabilities, with lower being better. Calibration is checked with a
+reliability plot and summarised by the expected calibration error (ECE), the
+average gap between predicted probability and observed rate.
+
+The baseline reached an AUC of 0.746 and a Brier score of 0.0795, beating the
+no-skill reference of 0.086. Its reliability curve
+(Figure~\ref{fig:baseeval}) sits almost exactly on the diagonal, so its
+probabilities can be read as genuine chances.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{baseline_evaluation.png}
+  \caption{Baseline model: ROC curve (left) and calibration plot (right).}
+  \label{fig:baseeval}
+\end{figure}
+
+% ================= Contextual features and enhanced model =================
+\section{Contextual Features and the Enhanced Model}
+
+The descriptive columns were turned into numeric features by one-hot encoding,
+where each category becomes a 0/1 column. For each feature one level was left out
+as a reference (right foot, normal technique, open play, regular play), so every
+coefficient reads as a comparison to a typical shot. Figure~\ref{fig:cats} shows
+how conversion varies across these categories. Headers and shots from a counter
+attack convert relatively well, and first-time shots convert better than shots
+where the player takes a touch first.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{category_conversion.png}
+  \caption{Empirical conversion rate by body part, technique, play pattern, and shot context.}
+  \label{fig:cats}
+\end{figure}
+
+Fitting the logistic model on all 20 features raised the AUC to 0.777 and improved
+the Brier score to 0.0772. The coefficients, shown as odds ratios in
+Figure~\ref{fig:or}, are revealing. Headers now have the strongest negative
+effect, an odds ratio near $0.22$, which appears to contradict their high raw
+conversion. The explanation is that headers convert well only because they occur
+close to goal, and once distance and angle are already accounted for, a header
+from the same position is clearly worse than a foot shot. This is the model
+separating location from technique, and it illustrates why a multi-feature model
+gives a fairer picture. Shots under pressure score less often, and shots from a
+counter attack score more.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.8\textwidth]{enhanced_odds_ratios.png}
+  \caption{Effect of each feature in the enhanced model. Bars right of 1 raise the odds of scoring, bars left of 1 lower them.}
+  \label{fig:or}
+\end{figure}
+
+% ================= Tree models and comparison =================
+\section{Tree Models and Comparison}
+
+Two tree based models were fitted with the same features, split, and evaluation.
+A Random Forest grows many decision trees on random slices of the data and
+averages them, while XGBoost builds trees one after another, each correcting the
+errors of the last. Both were tuned lightly using a validation slice of the
+training data.
+
+\begin{table}[h]
+  \centering
+  \caption{Model comparison on the held-out test set. Arrows show the good direction.}
+  \label{tab:compare}
+  \begin{tabular}{lcccc}
+    \toprule
+    Model & AUC $\uparrow$ & Brier $\downarrow$ & LogLoss $\downarrow$ & ECE $\downarrow$ \\
+    \midrule
+    Baseline logit (distance + angle) & 0.746 & 0.0795 & 0.280 & 0.0162 \\
+    Enhanced logit (context)          & 0.777 & 0.0772 & 0.270 & 0.0138 \\
+    Random Forest                     & 0.779 & 0.0769 & 0.269 & 0.0126 \\
+    XGBoost                           & 0.780 & 0.0769 & 0.269 & 0.0114 \\
+    \midrule
+    StatsBomb xG (benchmark)          & 0.816 & 0.0714 & 0.251 & 0.0116 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Table~\ref{tab:compare} and Figure~\ref{fig:compare} tell a clear story. The
+largest single gain comes from adding contextual features to the baseline. After
+that, the enhanced logistic model, the Random Forest, and XGBoost are almost
+indistinguishable on every measure. This means the models have reached the ceiling
+of what the available features can explain, and the remaining gap to the StatsBomb
+benchmark is due to information, chiefly the positions of defenders and the
+goalkeeper, rather than to model choice. All models are well calibrated, and on
+calibration error the XGBoost model matches the professional benchmark. Applying
+Platt scaling or isotonic regression to the already-calibrated XGBoost model did
+not improve test-set calibration, so no correction was retained.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{model_comparison.png}
+  \caption{AUC, Brier score, and calibration across all models.}
+  \label{fig:compare}
+\end{figure}
+
+% ================= Applied outputs =================
+\section{Applied Outputs}
+
+XGBoost was used as the final model for the applied outputs, being the strongest
+on every measure and the best calibrated. To avoid a model scoring shots it was
+trained on, each shot was assigned an xG using five-fold cross-validation. As a
+whole-dataset check, the total xG of 3{,}568 almost exactly matched the 3{,}569
+actual goals, confirming good calibration across the entire sample.
+
+Figure~\ref{fig:shotmap} maps shots coloured by xG, with the highest values
+concentrated centrally in the box. Finishing was then measured for each player as
+actual goals minus total xG. Figure~\ref{fig:finish} shows the biggest over and
+under-performers among players with at least 40 shots. The over-performers are led
+by elite forwards of the era such as Su\'arez, Ibrahimovic, Bale, Higua\'in, and
+Griezmann, which is strong evidence that the model behaves sensibly. As the
+literature review noted, a single season of finishing is noisy and biased, so this
+table describes who out-performed their chances in this season rather than a
+permanent measure of skill.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.82\textwidth]{shot_map_xg.png}
+  \caption{A sample of shots coloured by predicted xG.}
+  \label{fig:shotmap}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.78\textwidth]{finishing_table.png}
+  \caption{Finishing: goals above or below expectation, players with at least 40 shots.}
+  \label{fig:finish}
+\end{figure}
+
+% ================= Match simulation =================
+\section{Match Simulation}
+
+Once every shot has an xG value $p_i$, a shot can be treated as an independent
+Bernoulli trial. A team's goals in a match, $G = \sum_i B_i$ with
+$B_i \sim \mathrm{Bernoulli}(p_i)$, then follow a Poisson-binomial distribution
+with mean $\sum_i p_i$ and variance $\sum_i p_i(1-p_i)$. Treating the two teams'
+goals as independent, the match outcome probabilities are
+$P(\text{home win}) = P(G_H > G_A)$ and so on, and the expected points for the
+home team are
+\begin{equation}
+  \mathbb{E}[\text{pts}_H] = 3\,P(G_H > G_A) + 1\,P(G_H = G_A).
+\end{equation}
+These quantities were estimated by Monte Carlo, simulating every match 10{,}000
+times. Figure~\ref{fig:match} validates the method on the highest-shot-volume
+match: the simulated goal distribution matches the exact Poisson-binomial
+distribution, and the outcome probabilities show that Juventus deserved to win 71
+percent of the time yet only drew.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{example_match_sim.png}
+  \caption{Example match. Left: Monte Carlo goal counts (dots) against the exact Poisson-binomial distribution (bars). Right: outcome probabilities.}
+  \label{fig:match}
+\end{figure}
+
+Summing expected points across a season gives an xG-based league table.
+Figure~\ref{fig:xpoints} compares actual points to expected points for all four
+leagues. Teams above the diagonal earned more real points than their chances
+deserved. The two largest over-performers were Leicester City ($+20$) and
+Atl\'etico Madrid ($+21$), which matches the well-known story of the 2015/16
+season, when Leicester won the Premier League against expectation and Atl\'etico
+were famed for their efficiency.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.72\textwidth]{xpoints_vs_actual.png}
+  \caption{Actual points against expected points from xG. Teams above the line over-performed their chances.}
+  \label{fig:xpoints}
+\end{figure}
+
+% ================= Bayesian model =================
+\section{Bayesian Model and Uncertainty}
+
+The models above give a single estimate for each quantity. A Bayesian treatment
+produces a full posterior distribution and therefore credible intervals. Keeping
+the same likelihood and placing weakly-informative priors
+$\alpha \sim \mathcal{N}(0,5^2)$ and $\beta_k \sim \mathcal{N}(0,5^2)$, the
+posterior $p(\alpha,\boldsymbol{\beta}\mid\mathbf{y})$ was sampled. Because the
+dataset is large, the Bernstein--von Mises theorem ensures the posterior is close
+to $\mathcal{N}(\hat{\boldsymbol{\beta}}, \widehat{\boldsymbol{\Sigma}})$, which
+was used for the results here and reproduced with full Hamiltonian Monte Carlo in
+Stan.
+
+The posterior for the distance coefficient had a 95 percent credible interval of
+about $[-0.085, -0.068]$ and the angle coefficient $[0.018, 0.024]$, both well
+away from zero. Figure~\ref{fig:bayes} shows the coefficient posteriors and a
+credible band on the xG versus distance curve. The band is wider close to goal,
+where fewer shots are taken and the model is less certain, and narrower far out.
+This is uncertainty quantification made explicit: any prediction can now be
+reported with a credible interval.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{bayes_uncertainty.png}
+  \caption{Posterior distributions of the coefficients (left) and xG against distance with a 95 percent credible band (right).}
+  \label{fig:bayes}
+\end{figure}
+
+% ================= Sensitivity =================
+\section{Sensitivity Analysis}
+
+The behaviour of the model was studied both locally and globally. Locally, the
+derivatives of the logistic model follow from
+$\sigma'(\eta) = \sigma(\eta)(1-\sigma(\eta))$:
+\begin{equation}
+  \frac{\partial p}{\partial d} = \beta_1\, p(1-p),
+  \qquad
+  \frac{\partial p}{\partial \theta} = \beta_2\, p(1-p).
+\end{equation}
+Both share the factor $p(1-p)$, which is largest when $p = 0.5$. The model is
+therefore most sensitive to position for shots of moderate xG, physically a ring
+around the edge of the six-yard box, and least sensitive for near-certain or
+near-hopeless chances. This is visible in Figure~\ref{fig:senslocal}.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{sensitivity_local.png}
+  \caption{Local sensitivity: change in xG per unit distance and per degree of angle (left), and where on the pitch xG is most sensitive to position (right).}
+  \label{fig:senslocal}
+\end{figure}
+
+Globally, variance-based Sobol indices measure how much of the variation in xG
+across all shots is driven by each input. Distance had a first-order index of 0.62
+and angle 0.31, so distance is the dominant driver with angle second. The small
+gap between the first-order and total-effect indices (0.62 against 0.69 for
+distance) indicates only a modest interaction between the two features
+(Figure~\ref{fig:sobol}).
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.6\textwidth]{sensitivity_sobol.png}
+  \caption{Global sensitivity: first-order and total-effect Sobol indices.}
+  \label{fig:sobol}
+\end{figure}
+
+% ================= Discussion =================
+\section{Discussion and Limitations}
+
+The results support three main conclusions. First, most of the model's predictive
+power comes from a small set of geometric and contextual features, and the largest
+single improvement is the move from distance and angle alone to the full feature
+set. Second, once these features are fixed, flexible models offer almost no
+advantage over a well-specified logistic regression, so the interpretable model is
+a reasonable final choice. Third, the gap to a professional model is explained by
+missing information rather than by method, which is a useful and honest boundary on
+what open event data can achieve.
+
+Several limitations should be noted. The data lack freeze-frame information on
+defender and goalkeeper positions, which is the single largest missing input and
+the main reason for the gap to the StatsBomb benchmark. Only one fully covered
+season was available, so the model cannot be tested across seasons. The finishing
+table is based on a single season and, as the literature shows, such measures are
+noisy and biased, so they should not be read as fixed skill. The match simulation
+treats the two teams' goals as independent and ignores game state, and it uses
+open-play, non-penalty shots only, so simulated scorelines omit penalties and own
+goals. Finally, the global sensitivity analysis assumes distance and angle vary
+independently and uniformly, whereas in real shots they are correlated.
+
+% ================= Conclusion =================
+\section{Conclusion}
+
+This project built a calibrated xG model on open data and treated it as a
+mathematical model throughout. The shot geometry was derived from first
+principles, the baseline fit was framed as a maximum likelihood optimisation
+problem, and the model was extended to match outcomes through a Poisson-binomial
+Monte Carlo simulation, to uncertainty through a Bayesian treatment, and to
+behaviour through a sensitivity analysis. The final model is accurate, well
+calibrated, and interpretable, and its outputs recover known real-world results.
+The clearest route to further improvement would be richer positional data, which
+the analysis identifies as the main factor separating this model from a
+professional one.
+
+% ================= References =================
+\section*{References}
+\addcontentsline{toc}{section}{References}
+\begin{itemize}\setlength{\itemsep}{2pt}
+  \item Anzer, G., \& Bauer, P. (2021). A goal scoring probability model for shots based on synchronized positional and event data in football (soccer). \textit{Frontiers in Sports and Active Living}, 3, 624475.
+  \item Baio, G., \& Blangiardo, M. (2010). Bayesian hierarchical model for the prediction of football results. \textit{Journal of Applied Statistics}, 37(2), 253--264.
+  \item Davis, J., \& Robberechts, P. (2024). Biases in expected goals models confound finishing ability. \textit{arXiv preprint} arXiv:2401.09940.
+  \item Dixon, M. J., \& Coles, S. G. (1997). Modelling association football scores and inefficiencies in the football betting market. \textit{Journal of the Royal Statistical Society: Series C (Applied Statistics)}, 46(2), 265--280.
+  \item Hewitt, J. H., \& Karaku\c{s}, O. (2023). A machine learning approach for player and position adjusted expected goals in football (soccer). \textit{Franklin Open}, 4, 100034.
+  \item Lucey, P., Bialkowski, A., Monfort, M., Carr, P., \& Matthews, I. (2015). Quality vs quantity: Improved shot prediction in soccer using strategic features from spatiotemporal data. \textit{MIT Sloan Sports Analytics Conference}.
+  \item Mead, J., O'Hare, A., \& McMenemy, P. (2023). Expected goals in football: Improving model performance and demonstrating value. \textit{PLoS ONE}, 18(4), e0282295.
+  \item Rathke, A. (2017). An examination of expected goals and shot quality from a goalkeeper's perspective. \textit{International Journal of Computer Science in Sport}, 16(2), 69--79.
+  \item Scholtes, A., \& Karaku\c{s}, O. (2024). Bayes-xG: player and position correction on expected goals using a Bayesian hierarchical approach. \textit{Frontiers in Sports and Active Living}, 6, 1348983.
+  \item StatsBomb (2024). StatsBomb open data. \url{https://github.com/statsbomb/open-data}
+\end{itemize}
+
+\end{document}

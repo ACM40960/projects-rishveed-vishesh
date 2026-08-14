@@ -1,0 +1,235 @@
+\documentclass[11pt]{article}
+
+% ---------- Packages ----------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{parskip}            % space between paragraphs, no indent
+\usepackage[colorlinks=true,urlcolor=navy,linkcolor=navy]{hyperref}
+
+% ---------- Colours ----------
+\definecolor{navy}{HTML}{1F3864}
+\definecolor{accent}{HTML}{2E7D5B}
+\definecolor{grey}{HTML}{595959}
+
+% ---------- Section heading style (navy, with accent rule under) ----------
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{navy}}{}{0pt}{}[{\color{accent}\titlerule[1pt]}]
+\titlespacing*{\section}{0pt}{14pt}{6pt}
+
+% ---------- Justified text ----------
+\sloppy
+
+\begin{document}
+
+% ====================== Title block ======================
+\begin{center}
+  {\LARGE\bfseries\color{navy} Expected Goals (xG) Modelling in Football}\\[5pt]
+  {\large\itshape\color{grey} Literature Review and Project Plan}\\[3pt]
+  {\small\color{grey} ACM 40960 \ $\cdot$ \ Mathematical Modelling}
+\end{center}
+\vspace{4pt}
+{\color{navy}\hrule height 1.5pt}
+\vspace{10pt}
+
+% ====================== Background ======================
+\section*{Background}
+
+Expected Goals (xG) is a way of measuring how likely a shot is to end up as a
+goal. Each shot is given a value between 0 and 1, where a higher value means a
+better chance of scoring, based on features such as the distance from goal, the
+angle to goal, the body part used, and the amount of defensive pressure. Over
+the last decade xG has become a standard metric in football analytics and is now
+used widely by clubs, broadcasters, and researchers. Because goals are rare, a
+measure that estimates the quality of a shot rather than just counting goals
+gives a more stable picture of performance, which is part of why the metric has
+become so popular.
+
+% ====================== Literature Review ======================
+\section*{Literature Review}
+
+Early xG models were kept deliberately simple. Rathke (2017) showed that a
+logistic regression model based mainly on shot distance and angle could already
+give a reasonable estimate of goal probability. This set the basic template that
+most later work has built on.
+
+Much of the later research has focused on adding more information and using more
+flexible methods. Lucey et al.\ (2015) showed that strategic and spatial
+features, such as the positions of nearby defenders, improved prediction beyond
+shot location alone. Anzer and Bauer (2021) extended this by combining
+synchronised positional and event data to build one of the more detailed models
+in the field. Mead et al.\ (2023) argued that standard models leave out useful
+information such as player and team ability, and showed that adding these
+features changed the model outputs in a meaningful way. Alongside richer
+features, researchers have moved from logistic regression toward tree based
+ensemble methods such as Random Forest and gradient boosting, which handle
+non-linear patterns more easily. Bandara et al.\ (2024) went a step further by
+using the sequence of events before a shot, suggesting that the build-up play
+carries information that static shot features miss.
+
+A separate strand of work has focused on interpretability and on adjusting
+models for who takes the shot. Hewitt and Karaku\c{s} (2023) trained position
+adjusted models for forwards, midfielders, and defenders, and found clear
+differences between them. Scholtes and Karaku\c{s} (2024) used a Bayesian
+hierarchical approach, called Bayes-xG, to correct for player and position while
+sharing information across players. Iapteff et al.\ (2025) used Bayesian mixed
+models with a similar aim of keeping the model interpretable rather than
+treating it as a black box. These studies reflect a growing interest in models
+that are not only accurate but also explainable, which matters if coaches and
+analysts are going to trust the output.
+
+A common use of xG is to judge finishing ability by comparing a player's actual
+goals to their total xG, often called goals above expectation. This use has been
+questioned. Davis and Robberechts (2024) found that a player's overperformance
+is not stable from one season to the next, and that xG models can carry biases
+because stronger players and teams take more shots, which skews the data the
+model learns from. Their work is a useful reminder that a finishing table based
+on actual goals minus xG should be read with care rather than treated as a clean
+measure of skill.
+
+Across these studies, models are usually judged using AUC-ROC, the Brier score,
+and calibration plots. AUC measures how well a model separates goals from
+non-goals, while the Brier score and calibration plots check whether the
+predicted probabilities are realistic, for example whether shots given an xG of
+about 0.3 really are scored around 30 percent of the time. Calibration is often
+treated as just as important as raw accuracy, since an xG model is only useful if
+its probabilities can be trusted.
+
+xG is also a natural building block for modelling whole match outcomes. There is
+a long line of work that models the number of goals a team scores using Poisson
+based models, starting with Dixon and Coles (1997), who used a Poisson
+regression with team attack and defence strengths to model scores and study the
+betting market. Baio and Blangiardo (2010) later placed this kind of model in a
+Bayesian hierarchical framework. Because each shot already has a goal
+probability, the goals in a match can be treated as the sum of independent
+Bernoulli trials, which leads to a Poisson-binomial distribution and allows
+match outcomes and expected points to be simulated directly from the shots. This
+links the shot level xG model to a simulation of results at the match level.
+
+Overall, the literature has moved from simple distance and angle models toward
+richer, more flexible, and more interpretable ones. However, many of the more
+advanced models depend on detailed tracking data that is not always openly
+available, and a lot of comparisons focus on accuracy while paying less
+attention to calibration, to the known limitations of finishing measures, and to
+the mathematical structure behind the model. This project treats xG as a
+mathematical model rather than only a prediction task. The shot geometry is
+derived from first principles, the fitting of the model is framed as a maximum
+likelihood optimisation problem, the model is extended to match outcomes through
+Monte Carlo simulation, and the uncertainty in the predictions is quantified.
+The work is carried out on the StatsBomb open dataset so that it stays
+reproducible.
+
+% ====================== Project Plan ======================
+\section*{Project Plan}
+
+\begin{itemize}[leftmargin=1.6em,itemsep=5pt]
+  \item \textbf{\textcolor{navy}{Data setup:}} Shot events will be extracted from
+        the StatsBomb open dataset, including the shot coordinates, the body part
+        used, the assist type, the pressure, and the technique.
+  \item \textbf{\textcolor{navy}{Exploratory data analysis:}} Shot maps and
+        conversion rates will be visualised. The data will also be checked for
+        class imbalance, and the categorical features will be encoded so they can
+        be used by the models.
+  \item \textbf{\textcolor{navy}{Shot geometry:}} The distance and angle features
+        will be derived from the pitch coordinates using basic trigonometry,
+        where the angle is the width of the goal as seen from the shot location.
+        Iso-distance and iso-angle curves will be drawn on the pitch to show how
+        goal probability depends on position.
+  \item \textbf{\textcolor{navy}{Baseline model:}} A logistic regression model
+        will be fitted using shot distance and angle. The model will be written
+        out in full as a log-odds model, and the fitting will be presented as a
+        maximum likelihood optimisation problem. It will then be evaluated using
+        AUC, the Brier score, and a calibration plot.
+  \item \textbf{\textcolor{navy}{Enhanced models:}} Additional features will then
+        be added, and a Random Forest and an XGBoost model will be compared
+        against the baseline. Calibration will be assessed for each model, not
+        just ranking accuracy. Player finishing ability will be explored by
+        comparing actual goals to xG, while keeping in mind the known biases in
+        this measure.
+  \item \textbf{\textcolor{navy}{Bayesian model and uncertainty:}} A Bayesian
+        version of the model will be fitted in Stan so that each xG value comes
+        with a credible interval rather than a single number. This quantifies how
+        confident the model is and feeds into the calibration and finishing
+        discussion.
+  \item \textbf{\textcolor{navy}{Match simulation:}} Using the fitted xG values,
+        the goals in a match will be modelled as a sum of Bernoulli trials,
+        giving a Poisson-binomial distribution. A Monte Carlo simulation will
+        then estimate win, draw, and loss probabilities and the expected points a
+        team deserved from its shots.
+  \item \textbf{\textcolor{navy}{Sensitivity analysis:}} A sensitivity analysis
+        will show how the predicted goal probability responds to changes in
+        distance and angle, so the behaviour of the model is made clear rather
+        than left as a black box.
+  \item \textbf{\textcolor{navy}{Write-up:}} Finally, a full report will be
+        produced, covering the derivations, the model comparisons, the simulation
+        results, the visualisations, and a discussion of the limitations.
+\end{itemize}
+
+% ====================== Data ======================
+\section*{Data}
+
+The main data source for this project is the StatsBomb open dataset, which is
+available at the link given in the references. It contains shot level event data
+from competitions such as La Liga, the FA Women's Super League, and UEFA EURO
+2020. The data can be accessed through the \texttt{statsbombpy} Python library.
+
+% ====================== Expected Outcomes ======================
+\section*{Expected Outcomes}
+
+The project will produce a calibrated xG model that compares logistic
+regression, Random Forest, and XGBoost, together with a derivation of the shot
+geometry and a treatment of the model as a maximum likelihood optimisation
+problem. A Bayesian version will provide uncertainty estimates for the
+predictions. Building on the fitted model, a Monte Carlo simulation will produce
+match outcome probabilities and expected points. The project will also produce
+pitch heatmaps, calibration plots, a sensitivity analysis, and a player
+finishing table, with the finishing table interpreted with appropriate caution
+given the known limitations of this measure.
+
+% ====================== References ======================
+\section*{References}
+
+\begin{itemize}[leftmargin=1.6em,itemsep=4pt]
+  \item Anzer, G., \& Bauer, P. (2021). A goal scoring probability model for
+        shots based on synchronized positional and event data in football
+        (soccer). \textit{Frontiers in Sports and Active Living}, 3, 624475.
+  \item Baio, G., \& Blangiardo, M. (2010). Bayesian hierarchical model for the
+        prediction of football results. \textit{Journal of Applied Statistics},
+        37(2), 253--264.
+  \item Bandara, I., Shelyag, S., Rajasegarar, S., Dwyer, D., Kim, E.-J., \&
+        Angelova, M. (2024). Predicting goal probabilities with improved xG
+        models using event sequences in association football. \textit{PLoS ONE},
+        19(10), e0312278.
+  \item Davis, J., \& Robberechts, P. (2024). Biases in expected goals models
+        confound finishing ability. \textit{arXiv preprint} arXiv:2401.09940.
+  \item Dixon, M. J., \& Coles, S. G. (1997). Modelling association football
+        scores and inefficiencies in the football betting market. \textit{Journal
+        of the Royal Statistical Society: Series C (Applied Statistics)}, 46(2),
+        265--280.
+  \item Hewitt, J. H., \& Karaku\c{s}, O. (2023). A machine learning approach for
+        player and position adjusted expected goals in football (soccer).
+        \textit{Franklin Open}, 4, 100034.
+  \item Iapteff, L., Le Coz, S., Rioland, M., Houde, T., Carling, C., \& Imbach,
+        F. (2025). Toward interpretable expected goals modeling using Bayesian
+        mixed models. \textit{Frontiers in Sports and Active Living}, 7, 1504362.
+  \item Lucey, P., Bialkowski, A., Monfort, M., Carr, P., \& Matthews, I. (2015).
+        ``Quality vs quantity'': Improved shot prediction in soccer using
+        strategic features from spatiotemporal data. \textit{MIT Sloan Sports
+        Analytics Conference}.
+  \item Mead, J., O'Hare, A., \& McMenemy, P. (2023). Expected goals in football:
+        Improving model performance and demonstrating value. \textit{PLoS ONE},
+        18(4), e0282295.
+  \item Rathke, A. (2017). An examination of expected goals and shot quality from
+        a goalkeeper's perspective. \textit{International Journal of Computer
+        Science in Sport}, 16(2), 69--79.
+  \item Scholtes, A., \& Karaku\c{s}, O. (2024). Bayes-xG: player and position
+        correction on expected goals (xG) using a Bayesian hierarchical approach.
+        \textit{Frontiers in Sports and Active Living}, 6, 1348983.
+  \item StatsBomb (2024). StatsBomb open data.
+        \url{https://github.com/statsbomb/open-data}
+\end{itemize}
+
+\end{document}
