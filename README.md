@@ -216,7 +216,9 @@ The animation below sweeps the fitted baseline curve through shooting angles fro
 
 <img src="outputs/xg_angle_sweep.gif" alt="xG probability vs. distance, animated across shooting angles" width="550"/>
 
-<img src="outputs/model_comparison.png" alt="Model Comparison" width="400"/> <img src="outputs/all_calibration.png" alt="Calibration Curves" width="400"/>
+<img src="outputs/model_comparison.png" alt="Model Comparison" width="550"/>
+
+<img src="outputs/all_calibration.png" alt="Calibration Curves" width="550"/>
 
 The calibration curves above show every model tracking close to the diagonal (perfect calibration) across the full probability range, with XGBoost the tightest fit (ECE 0.0114) — meaning a shot the model rates as "30% likely to score" really does score roughly 30% of the time, not just that the model ranks shots correctly.
 
@@ -258,15 +260,15 @@ Beyond the core classification task, the project extends the xG model into three
 
 - **Monte Carlo Match Simulation** (`13_match_simulation.py`): simulates match and league outcomes from shot-level xG using a [Poisson-binomial](https://en.wikipedia.org/wiki/Poisson_binomial_distribution) model, producing simulated league tables comparable against actual final standings.
 
-  <img src="outputs/example_match_sim.png" alt="Example Match Simulation" width="320"/>
+  <img src="outputs/example_match_sim.png" alt="Example Match Simulation" width="420"/>
 
 - **Bayesian Uncertainty Quantification** (`14_bayesian_uq.py`, `stan/xg_logistic.stan`): re-fits the baseline logistic model in a [Bayesian](https://en.wikipedia.org/wiki/Bayesian_inference) framework to obtain full posterior uncertainty over the distance/angle coefficients, rather than point estimates alone.
 
-  <img src="outputs/bayes_uncertainty.png" alt="Bayesian Coefficient Uncertainty" width="320"/>
+  <img src="outputs/bayes_uncertainty.png" alt="Bayesian Coefficient Uncertainty" width="420"/>
 
 - **Sensitivity Analysis** (`15_sensitivity.py`): local derivative-based sensitivity and global [Sobol indices](https://en.wikipedia.org/wiki/Variance-based_sensitivity_analysis), quantifying how much of the variance in predicted xG is attributable to distance versus angle.
 
-  <img src="outputs/sensitivity_sobol.png" alt="Sobol Sensitivity Indices" width="320"/>
+  <img src="outputs/sensitivity_sobol.png" alt="Sobol Sensitivity Indices" width="420"/>
 
 ## Report
 
@@ -294,7 +296,7 @@ Contributions are welcome. If you'd like to improve this project, please fork th
 
 ## License
 
-This project is licensed under the MIT License. *(Add a `LICENSE` file to the repo root if one is not already present.)*
+This project is licensed under the [MIT License](LICENSE) — see the `LICENSE` file for the full text.
 
 ## Contact
 
