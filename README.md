@@ -13,7 +13,7 @@
 ![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)
 ![GitHub Repo stars](https://img.shields.io/github/stars/ACM40960/projects-rishveed-vishesh?style=social)
 
-Expected Goals (xG) is the standard way football analysts quantify chance quality: the probability that a given shot results in a goal, based on where and how it was taken. This project builds a calibrated xG model from scratch as a **mathematical modelling** exercise — treating shot geometry, maximum likelihood estimation, model calibration, match simulation, and uncertainty as mathematical objects to derive and justify, not just a predictive pipeline to run.
+[Expected Goals (xG)](https://en.wikipedia.org/wiki/Expected_goals) is the standard way football analysts quantify chance quality: the probability that a given shot results in a goal, based on where and how it was taken. This project builds a calibrated xG model from scratch as a **mathematical modelling** exercise — treating shot geometry, [maximum likelihood estimation](https://en.wikipedia.org/wiki/Maximum_likelihood_estimation), model calibration, match simulation, and uncertainty as mathematical objects to derive and justify, not just a predictive pipeline to run.
 
 ## Table of Contents
 
@@ -42,21 +42,23 @@ Expected Goals (xG) is the standard way football analysts quantify chance qualit
 
 ## Abstract
 
-Expected Goals models are widely used in football analytics, but most public implementations prioritise predictive accuracy over mathematical transparency. This project builds an xG model on StatsBomb's open shot-event data with an explicit emphasis on interpretability: shot distance and angle are derived from first principles via trigonometry, the baseline logistic regression is framed as a maximum likelihood estimation problem with interpretable log-odds coefficients, and every model is evaluated not just on discrimination (AUC-ROC) but on calibration (Brier score, Expected Calibration Error) against StatsBomb's own published xG as a benchmark. The project is extended beyond a standard classification task into a Monte Carlo match simulation, Bayesian uncertainty quantification, and global sensitivity analysis (Sobol indices), turning the model into a tool that can simulate outcomes and quantify its own confidence, not just classify shots.
+Expected Goals models are widely used in football analytics, but most public implementations prioritise predictive accuracy over mathematical transparency. This project builds an xG model on StatsBomb's open shot-event data with an explicit emphasis on interpretability: shot distance and angle are derived from first principles via trigonometry, the baseline [logistic regression](https://en.wikipedia.org/wiki/Logistic_regression) is framed as a [maximum likelihood estimation](https://en.wikipedia.org/wiki/Maximum_likelihood_estimation) problem with interpretable log-odds coefficients, and every model is evaluated not just on discrimination ([AUC-ROC](https://en.wikipedia.org/wiki/Receiver_operating_characteristic)) but on calibration ([Brier score](https://en.wikipedia.org/wiki/Brier_score), [Expected Calibration Error](https://arxiv.org/abs/1706.04599)) against StatsBomb's own published xG as a benchmark. The project is extended beyond a standard classification task into a [Monte Carlo](https://en.wikipedia.org/wiki/Monte_Carlo_method) match simulation, [Bayesian](https://en.wikipedia.org/wiki/Bayesian_inference) uncertainty quantification, and global sensitivity analysis ([Sobol indices](https://en.wikipedia.org/wiki/Variance-based_sensitivity_analysis)), turning the model into a tool that can simulate outcomes and quantify its own confidence, not just classify shots.
+
+**Key limitation, up front:** every model here tops out around 0.78–0.79 AUC, short of StatsBomb's own ~0.82. This isn't a modelling failure — it's because StatsBomb's proprietary xG has access to defender and goalkeeper positioning ([freeze-frame data](https://statsbomb.com/what-we-do/hub/statsbomb-360/)) that isn't in the open dataset used here. See [Key Metrics](#key-metrics) for the full comparison.
 
 ## Project Description
 
 ### Key Components
 
 - **Shot Geometry:** Distance and angle to goal derived explicitly via trigonometry from StatsBomb's (x, y) shot-location coordinates.
-- **Baseline Logistic Regression:** An interpretable model on distance + angle only, framed as maximum likelihood estimation, with coefficients reported as log-odds and odds ratios.
+- **Baseline Logistic Regression:** An interpretable model on distance + angle only, framed as [maximum likelihood estimation](https://en.wikipedia.org/wiki/Maximum_likelihood_estimation), with coefficients reported as log-odds and [odds ratios](https://en.wikipedia.org/wiki/Odds_ratio).
 - **Enhanced Logistic Regression:** Adds shot context — body part, technique, play pattern, pressure, first-time finish — as encoded categorical features.
-- **Tree-Based Models:** Random Forest and XGBoost, compared against the logistic baselines on the same evaluation criteria.
-- **Calibration:** Every model is evaluated with AUC-ROC, Brier score, and Expected Calibration Error, with calibration curves plotted against the diagonal.
+- **Tree-Based Models:** [Random Forest](https://en.wikipedia.org/wiki/Random_forest) and [XGBoost](https://xgboost.readthedocs.io/), compared against the logistic baselines on the same evaluation criteria.
+- **Calibration:** Every model is evaluated with [AUC-ROC](https://en.wikipedia.org/wiki/Receiver_operating_characteristic), [Brier score](https://en.wikipedia.org/wiki/Brier_score), and [Expected Calibration Error](https://arxiv.org/abs/1706.04599), with calibration curves plotted against the diagonal.
 - **Applied Outputs:** Pitch-space xG surfaces, shot maps coloured by xG, and a player finishing table (goals minus xG) to surface over/under-performing finishers.
-- **Monte Carlo Match Simulation:** Simulated league tables from shot-level xG using a Poisson-binomial approach, benchmarked against actual final standings.
+- **Monte Carlo Match Simulation:** Simulated league tables from shot-level xG using a [Poisson-binomial](https://en.wikipedia.org/wiki/Poisson_binomial_distribution) approach, benchmarked against actual final standings.
 - **Bayesian Uncertainty Quantification:** Coefficient uncertainty for the baseline logistic model via a Stan implementation (with a Python demo fallback).
-- **Sensitivity Analysis:** Local derivative-based and global Sobol sensitivity indices, quantifying how much distance and angle each drive predicted xG.
+- **Sensitivity Analysis:** Local derivative-based and global [Sobol sensitivity indices](https://en.wikipedia.org/wiki/Variance-based_sensitivity_analysis), quantifying how much distance and angle each drive predicted xG.
 
 ### Model Progression
 
@@ -171,6 +173,20 @@ Or run the scripts individually, in order, from the repo root:
 
 Steps depend on earlier ones, so keep the order.
 
+Once step 04 has run, the fitted baseline model is saved to `data/` and can be loaded directly for a single prediction without re-running the full pipeline:
+
+```python
+import joblib
+import numpy as np
+
+model = joblib.load("data/baseline_logit_model.pkl")
+
+# distance (metres), angle (degrees) for one shot
+shot = np.array([[12.5, 35.0]])
+xg = model.predict_proba(shot)[0, 1]
+print(f"xG: {xg:.3f}")
+```
+
 ## Results
 
 ### Key Metrics
@@ -185,7 +201,7 @@ All models are evaluated on a held-out test split with AUC-ROC, Brier score, log
 | XGBoost | 0.779 | 0.0769 | 0.2688 | 0.0114 |
 | **StatsBomb xG (benchmark)** | **0.816** | **0.0714** | **0.2510** | 0.0116 |
 
-The enhanced logistic model, Random Forest, and XGBoost converge to essentially the same performance (~0.78 AUC) — model *family* stops mattering once context features are added. The residual gap to StatsBomb's own xG (~0.82 AUC) is best explained by missing defender and goalkeeper positioning data (freeze-frame data), which StatsBomb's model has access to and this one does not, rather than by model choice.
+The enhanced logistic model, Random Forest, and XGBoost converge to essentially the same performance (~0.78 AUC) — model *family* stops mattering once context features are added. The residual gap to StatsBomb's own xG (~0.82 AUC) is best explained by missing defender and goalkeeper positioning data ([freeze-frame data](https://statsbomb.com/what-we-do/hub/statsbomb-360/)), which StatsBomb's model has access to and this one does not, rather than by model choice.
 
 The baseline logistic regression coefficients are directly interpretable in log-odds terms:
 
@@ -196,8 +212,13 @@ The baseline logistic regression coefficients are directly interpretable in log-
 
 Each additional metre from goal multiplies the odds of scoring by ≈0.93 (a 7% decrease); each additional degree of shooting angle multiplies the odds by ≈1.02 (a 2% increase) — both statistically significant (p < 0.001).
 
-![Model Comparison](outputs/model_comparison.png)
-![Calibration Curves](outputs/all_calibration.png)
+The animation below sweeps the fitted baseline curve through shooting angles from 3° to 90°, with real shots (binned by distance, filtered to each angle's ±4° band) overlaid as validation — the fitted curve tracks the empirical scoring rate closely across nearly the whole angle range, which is a useful sanity check that a two-parameter model isn't just overfitting noise:
+
+<img src="outputs/xg_angle_sweep.gif" alt="xG probability vs. distance, animated across shooting angles" width="550"/>
+
+<img src="outputs/model_comparison.png" alt="Model Comparison" width="400"/> <img src="outputs/all_calibration.png" alt="Calibration Curves" width="400"/>
+
+The calibration curves above show every model tracking close to the diagonal (perfect calibration) across the full probability range, with XGBoost the tightest fit (ECE 0.0114) — meaning a shot the model rates as "30% likely to score" really does score roughly 30% of the time, not just that the model ranks shots correctly.
 
 ### Feature Importance
 
@@ -211,16 +232,15 @@ Random Forest feature importances confirm that geometry dominates: distance and 
 | First-time | 0.030 |
 | Under pressure | 0.027 |
 
-![Random Forest Importances](outputs/rf_importances.png)
+<img src="outputs/rf_importances.png" alt="Random Forest Importances" width="550"/>
 
 ### Applied Outputs
 
-**Shot map and xG surface** — every shot in the dataset plotted on a pitch, coloured by predicted xG, alongside a continuous xG surface across pitch coordinates:
+**Shot map and xG surface** — every shot in the dataset plotted on a pitch, coloured by predicted xG, alongside a continuous xG surface across pitch coordinates. The surface falls off sharply beyond roughly 20 metres from goal and at narrow shooting angles, consistent with the baseline coefficients above — the shot map shows this pattern holds shot-by-shot, not just on average:
 
-![Shot Map](outputs/shot_map_xg.png)
-![Baseline xG Surface](outputs/baseline_xg_surface.png)
+<img src="outputs/shot_map_xg.png" alt="Shot Map" width="400"/> <img src="outputs/baseline_xg_surface.png" alt="Baseline xG Surface" width="400"/>
 
-**Player finishing table** — actual goals minus expected goals (xG), surfacing the biggest over-performers relative to shot quality across the four 2015/16 leagues:
+**Player finishing table** — actual goals minus expected goals (xG), surfacing the biggest over-performers relative to shot quality across the four 2015/16 leagues. A positive value means a player scored more than their shot quality alone would predict — Luis Suárez's +14.0 is the largest gap in the dataset:
 
 | Player | Shots | Goals | xG | Goals − xG |
 |---|---|---|---|---|
@@ -230,23 +250,23 @@ Random Forest feature importances confirm that geometry dominates: distance and 
 | Gonzalo Higuaín | 179 | 33 | 22.3 | +10.7 |
 | Antoine Griezmann | 90 | 21 | 11.9 | +9.1 |
 
-![Finishing Table](outputs/finishing_table.png)
+<img src="outputs/finishing_table.png" alt="Finishing Table" width="550"/>
 
 ## Extensions
 
 Beyond the core classification task, the project extends the xG model into three mathematical applications:
 
-- **Monte Carlo Match Simulation** (`13_match_simulation.py`): simulates match and league outcomes from shot-level xG using a Poisson-binomial model, producing simulated league tables comparable against actual final standings.
+- **Monte Carlo Match Simulation** (`13_match_simulation.py`): simulates match and league outcomes from shot-level xG using a [Poisson-binomial](https://en.wikipedia.org/wiki/Poisson_binomial_distribution) model, producing simulated league tables comparable against actual final standings.
 
-  ![Example Match Simulation](outputs/example_match_sim.png)
+  <img src="outputs/example_match_sim.png" alt="Example Match Simulation" width="320"/>
 
-- **Bayesian Uncertainty Quantification** (`14_bayesian_uq.py`, `stan/xg_logistic.stan`): re-fits the baseline logistic model in a Bayesian framework to obtain full posterior uncertainty over the distance/angle coefficients, rather than point estimates alone.
+- **Bayesian Uncertainty Quantification** (`14_bayesian_uq.py`, `stan/xg_logistic.stan`): re-fits the baseline logistic model in a [Bayesian](https://en.wikipedia.org/wiki/Bayesian_inference) framework to obtain full posterior uncertainty over the distance/angle coefficients, rather than point estimates alone.
 
-  ![Bayesian Coefficient Uncertainty](outputs/bayes_uncertainty.png)
+  <img src="outputs/bayes_uncertainty.png" alt="Bayesian Coefficient Uncertainty" width="320"/>
 
-- **Sensitivity Analysis** (`15_sensitivity.py`): local derivative-based sensitivity and global Sobol indices, quantifying how much of the variance in predicted xG is attributable to distance versus angle.
+- **Sensitivity Analysis** (`15_sensitivity.py`): local derivative-based sensitivity and global [Sobol indices](https://en.wikipedia.org/wiki/Variance-based_sensitivity_analysis), quantifying how much of the variance in predicted xG is attributable to distance versus angle.
 
-  ![Sobol Sensitivity Indices](outputs/sensitivity_sobol.png)
+  <img src="outputs/sensitivity_sobol.png" alt="Sobol Sensitivity Indices" width="320"/>
 
 ## Report
 
@@ -282,4 +302,4 @@ For any questions or suggestions, please open an issue on this repository.
 
 ## Credits
 
-This project was built by Rishveed Sali and Vishesh, for module ACM 40960 (Mathematical Modelling), University College Dublin, using [StatsBomb's open data](https://github.com/statsbomb/open-data).
+This project was built by Rishveed Sali and Vishesh Vashisth, for module ACM 40960 (Mathematical Modelling), University College Dublin, using [StatsBomb's open data](https://github.com/statsbomb/open-data).
