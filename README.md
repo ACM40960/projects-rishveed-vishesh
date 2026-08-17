@@ -216,7 +216,7 @@ The animation below sweeps the fitted baseline curve through shooting angles fro
 
 <img src="outputs/xg_angle_sweep.gif" alt="xG probability vs. distance, animated across shooting angles" width="550"/>
 
-<img src="outputs/model_comparison.png" alt="Model Comparison" width="550"/>
+<img src="outputs/model_comparison.png" alt="Model Comparison" width="750"/>
 
 <img src="outputs/all_calibration.png" alt="Calibration Curves" width="550"/>
 
@@ -260,11 +260,11 @@ Beyond the core classification task, the project extends the xG model into three
 
 - **Monte Carlo Match Simulation** (`13_match_simulation.py`): simulates match and league outcomes from shot-level xG using a [Poisson-binomial](https://en.wikipedia.org/wiki/Poisson_binomial_distribution) model, producing simulated league tables comparable against actual final standings.
 
-  <img src="outputs/example_match_sim.png" alt="Example Match Simulation" width="420"/>
+  <img src="outputs/example_match_sim.png" alt="Example Match Simulation" width="600"/>
 
 - **Bayesian Uncertainty Quantification** (`14_bayesian_uq.py`, `stan/xg_logistic.stan`): re-fits the baseline logistic model in a [Bayesian](https://en.wikipedia.org/wiki/Bayesian_inference) framework to obtain full posterior uncertainty over the distance/angle coefficients, rather than point estimates alone.
 
-  <img src="outputs/bayes_uncertainty.png" alt="Bayesian Coefficient Uncertainty" width="420"/>
+  <img src="outputs/bayes_uncertainty.png" alt="Bayesian Coefficient Uncertainty" width="550"/>
 
 - **Sensitivity Analysis** (`15_sensitivity.py`): local derivative-based sensitivity and global [Sobol indices](https://en.wikipedia.org/wiki/Variance-based_sensitivity_analysis), quantifying how much of the variance in predicted xG is attributable to distance versus angle.
 
