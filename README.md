@@ -304,4 +304,4 @@ For any questions or suggestions, please open an issue on this repository.
 
 ## Credits
 
-This project was built by Rishveed Sali and Vishesh Vashisth, for module ACM 40960 (Mathematical Modelling), University College Dublin, using [StatsBomb's open data](https://github.com/statsbomb/open-data).
+This project was built by Rishveed Sali - 24101804 and Vishesh Vashisth - 25205858, for module ACM 40960 (Mathematical Modelling), University College Dublin, using [StatsBomb's open data](https://github.com/statsbomb/open-data).
